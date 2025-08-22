@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { signIn } from 'aws-amplify/auth';
+import { amplifyConfig } from '../../src/lib/amplify-config';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -45,10 +46,28 @@ export default function SignInScreen() {
 
     setIsLoading(true);
     try {
-      await signIn({
-        username: email.trim(),
-        password: password,
-      });
+      console.log('Attempting sign in with:', { username: email.trim() });
+      console.log('Current Amplify config:', amplifyConfig);
+      
+      // Force USER_PASSWORD_AUTH to avoid SRP edge cases, and surface errors
+      let result;
+      try {
+        result = await signIn({
+          username: email.trim(),
+          password: password,
+          options: { authFlowType: 'USER_PASSWORD_AUTH' }
+        });
+        console.log('Sign in successful:', result);
+      } catch (innerError: any) {
+        console.error('Inner sign in error:', {
+          name: innerError?.name,
+          message: innerError?.message,
+          code: innerError?.code,
+          cause: innerError?.cause,
+          stack: innerError?.stack?.substring(0, 500)
+        });
+        throw innerError;
+      }
       
       // Success - navigate to app
       router.replace('/(app)/home');
@@ -62,12 +81,14 @@ export default function SignInScreen() {
       } else if (error.name === 'UserNotConfirmedException') {
         errorMessage = 'Please check your email and confirm your account';
       } else if (error.name === 'UserNotFoundException') {
-        errorMessage = 'No account found with this email';
+        errorMessage = 'No account found with this email. Please sign up first.';
       } else if (error.message) {
         errorMessage = error.message;
       }
       
-      Alert.alert('Sign In Failed', errorMessage);
+      // Add error code for debugging
+      const errorCode = error.name ? ` (${error.name})` : '';
+      Alert.alert('Sign In Failed', errorMessage + errorCode);
     } finally {
       setIsLoading(false);
     }
