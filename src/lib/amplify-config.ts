@@ -1,12 +1,7 @@
 // Amplify Configuration (v6 format)
 // Automatically configured from environment variables
 
-// Debug: Log environment variables
-console.log('Environment variables:', {
-  userPoolId: process.env.EXPO_PUBLIC_USER_POOL_ID,
-  clientId: process.env.EXPO_PUBLIC_USER_POOL_CLIENT_ID,
-  region: process.env.EXPO_PUBLIC_AWS_REGION
-});
+// Environment is provided by Expo via EXPO_PUBLIC_* variables
 
 export const amplifyConfig = {
   Auth: {

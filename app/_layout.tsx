@@ -8,11 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { amplifyConfig } from '../src/lib/amplify-config';
 
 // Initialize Amplify
-console.log('Initializing Amplify with config:', amplifyConfig);
 Amplify.configure(amplifyConfig);
-
-// Verify Amplify is configured
-console.log('Amplify configured, Auth config:', Amplify.getConfig().Auth);
 
 export default function RootLayout() {
   return (

@@ -14,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { signIn } from 'aws-amplify/auth';
-import { amplifyConfig } from '../../src/lib/amplify-config';
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -46,48 +45,28 @@ export default function SignInScreen() {
 
     setIsLoading(true);
     try {
-      console.log('Attempting sign in with:', { username: email.trim() });
-      console.log('Current Amplify config:', amplifyConfig);
-      
-      // Force USER_PASSWORD_AUTH to avoid SRP edge cases, and surface errors
-      let result;
-      try {
-        result = await signIn({
-          username: email.trim(),
-          password: password,
-          options: { authFlowType: 'USER_PASSWORD_AUTH' }
-        });
-        console.log('Sign in successful:', result);
-      } catch (innerError: any) {
-        console.error('Inner sign in error:', {
-          name: innerError?.name,
-          message: innerError?.message,
-          code: innerError?.code,
-          cause: innerError?.cause,
-          stack: innerError?.stack?.substring(0, 500)
-        });
-        throw innerError;
-      }
-      
+      await signIn({
+        username: email.trim(),
+        password: password,
+        options: { authFlowType: 'USER_PASSWORD_AUTH' }
+      });
+
       // Success - navigate to app
       router.replace('/(app)/home');
     } catch (error: any) {
-      console.error('Sign in error:', error);
-      
       // Handle specific error cases
       let errorMessage = 'An error occurred during sign in';
-      if (error.name === 'NotAuthorizedException') {
+      if (error?.name === 'NotAuthorizedException') {
         errorMessage = 'Invalid email or password';
-      } else if (error.name === 'UserNotConfirmedException') {
+      } else if (error?.name === 'UserNotConfirmedException') {
         errorMessage = 'Please check your email and confirm your account';
-      } else if (error.name === 'UserNotFoundException') {
+      } else if (error?.name === 'UserNotFoundException') {
         errorMessage = 'No account found with this email. Please sign up first.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (error?.message) {
+        errorMessage = error.message as string;
       }
       
-      // Add error code for debugging
-      const errorCode = error.name ? ` (${error.name})` : '';
+      const errorCode = error?.name ? ` (${error.name})` : '';
       Alert.alert('Sign In Failed', errorMessage + errorCode);
     } finally {
       setIsLoading(false);
