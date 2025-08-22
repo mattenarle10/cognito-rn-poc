@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
+    "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-navigation/native": "^7.1.17",
     "@react-navigation/stack": "^7.4.7",
     "aws-amplify": "^6.15.5",

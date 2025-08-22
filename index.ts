@@ -1,3 +1,6 @@
+// React Native polyfills for AWS Amplify
+import '@react-native-async-storage/async-storage';
+
 import { registerRootComponent } from 'expo';
 
 import App from './App';
