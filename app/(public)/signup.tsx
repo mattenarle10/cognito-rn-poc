@@ -10,11 +10,11 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { OtpCodeInput } from '@/components/auth/otp-code';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { signUp, confirmSignUp } from 'aws-amplify/auth';
+import { signUp } from 'aws-amplify/auth';
 
 export default function SignUpScreen() {
   const [firstName, setFirstName] = useState('');
@@ -23,8 +23,7 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showConfirmation] = useState(false);
-  const [confirmationCode, setConfirmationCode] = useState('');
+  // Verification handled by centralized /verify-otp page
 
   const validateForm = () => {
     if (!firstName.trim()) {
@@ -94,98 +93,12 @@ export default function SignUpScreen() {
     }
   };
 
-  const handleConfirmSignUp = async () => {
-    if (!confirmationCode.trim()) {
-      Alert.alert('Error', 'Please enter the verification code');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await confirmSignUp({
-        username: email.trim(),
-        confirmationCode: confirmationCode.trim(),
-      });
-      
-      Alert.alert(
-        'Success!',
-        'Your account has been verified. You can now sign in.',
-        [
-          {
-            text: 'Sign In',
-            onPress: () => router.replace('/(public)/signin'),
-          },
-        ]
-      );
-    } catch (error: any) {
-      console.error('Confirmation error:', error);
-      
-      let errorMessage = 'Invalid verification code';
-      if (error.name === 'CodeMismatchException') {
-        errorMessage = 'Invalid verification code';
-      } else if (error.name === 'ExpiredCodeException') {
-        errorMessage = 'Verification code has expired';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      Alert.alert('Verification Failed', errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const navigateToSignIn = () => {
     router.replace('/(public)/signin');
   };
 
-  if (showConfirmation) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
-        <KeyboardAvoidingView 
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.header}>
-              <Text style={styles.title}>Verify Email</Text>
-              <Text style={styles.subtitle}>
-                We sent a verification code to {email}
-              </Text>
-            </View>
-
-            <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Verification Code</Text>
-                <OtpCodeInput value={confirmationCode} onChangeCode={setConfirmationCode} />
-              </View>
-
-              <TouchableOpacity
-                style={[styles.signUpButton, isLoading && styles.buttonDisabled]}
-                onPress={handleConfirmSignUp}
-                disabled={isLoading}
-              >
-                <Text style={styles.signUpButtonText}>
-                  {isLoading ? 'Verifying...' : 'Verify Account'}
-                </Text>
-              </TouchableOpacity>
-
-              <View style={styles.signInContainer}>
-                <Text style={styles.signInText}>Already verified? </Text>
-                <TouchableOpacity onPress={navigateToSignIn} disabled={isLoading}>
-                  <Text style={styles.signInLink}>Sign In</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
-    );
-  }
+  // No inline confirmation screen; we route to /verify-otp after sign up
 
   return (
     <SafeAreaView style={styles.container}>
