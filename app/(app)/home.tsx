@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { signOut, getCurrentUser } from 'aws-amplify/auth';
+import { signOut, getCurrentUser, fetchUserAttributes } from 'aws-amplify/auth';
 import type { UserInfo } from '../../src/types';
 
 export default function DashboardScreen() {
@@ -23,10 +23,13 @@ export default function DashboardScreen() {
   const fetchUserInfo = async () => {
     try {
       const user = await getCurrentUser();
-      setUserInfo({
+      const attributes = await fetchUserAttributes();
+      const nextUser: UserInfo = {
         userId: user.userId,
         username: user.username,
-      });
+        ...(attributes.email ? { email: attributes.email } : {}),
+      };
+      setUserInfo(nextUser);
     } catch (error) {
       console.error('Error fetching user info:', error);
       // If we can't get user info, redirect to auth
@@ -80,7 +83,7 @@ export default function DashboardScreen() {
       <View style={styles.content}>
         <Text style={styles.heading}>Welcome</Text>
         <Text style={styles.caption}>Signed in as</Text>
-        <Text style={styles.primaryValue}>{userInfo?.username}</Text>
+        <Text style={styles.primaryValue}>{userInfo?.email ?? userInfo?.username}</Text>
 
         <View style={styles.divider} />
 
