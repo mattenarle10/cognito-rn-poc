@@ -17,6 +17,8 @@ import { router } from 'expo-router';
 import { signUp, confirmSignUp } from 'aws-amplify/auth';
 
 export default function SignUpScreen() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -25,6 +27,14 @@ export default function SignUpScreen() {
   const [confirmationCode, setConfirmationCode] = useState('');
 
   const validateForm = () => {
+    if (!firstName.trim()) {
+      Alert.alert('Error', 'Please enter your first name');
+      return false;
+    }
+    if (!lastName.trim()) {
+      Alert.alert('Error', 'Please enter your last name');
+      return false;
+    }
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email');
       return false;
@@ -59,6 +69,8 @@ export default function SignUpScreen() {
         options: {
           userAttributes: {
             email: email.trim(),
+            given_name: firstName.trim(),
+            family_name: lastName.trim(),
           },
         },
       });
@@ -192,6 +204,31 @@ export default function SignUpScreen() {
           </View>
 
           <View style={styles.form}>
+            <View style={styles.nameRow}>
+              <View style={[styles.inputContainer, styles.nameColLeft]}>
+                <Text style={styles.label}>First Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  placeholder="First name"
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                />
+              </View>
+              <View style={[styles.inputContainer, styles.nameColRight]}>
+                <Text style={styles.label}>Last Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  placeholder="Last name"
+                  autoCapitalize="words"
+                  editable={!isLoading}
+                />
+              </View>
+            </View>
+
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Email</Text>
               <TextInput
@@ -286,6 +323,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   form: {
+    flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  nameColLeft: {
+    flex: 1,
+  },
+  nameColRight: {
     flex: 1,
   },
   inputContainer: {

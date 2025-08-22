@@ -2,6 +2,8 @@ export interface UserInfo {
   userId: string;
   username: string;
   email?: string;
+  givenName?: string;
+  familyName?: string;
 }
 
 export interface AuthState {

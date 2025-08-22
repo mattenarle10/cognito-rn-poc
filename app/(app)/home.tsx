@@ -28,6 +28,8 @@ export default function DashboardScreen() {
         userId: user.userId,
         username: user.username,
         ...(attributes.email ? { email: attributes.email } : {}),
+        ...(attributes.given_name ? { givenName: attributes.given_name } : {}),
+        ...(attributes.family_name ? { familyName: attributes.family_name } : {}),
       };
       setUserInfo(nextUser);
     } catch (error) {
