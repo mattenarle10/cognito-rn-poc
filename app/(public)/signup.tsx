@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import { OtpCodeInput } from '@/components/auth/otp-code';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -20,7 +21,7 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [showConfirmation] = useState(false);
   const [confirmationCode, setConfirmationCode] = useState('');
 
   const validateForm = () => {
@@ -62,11 +63,7 @@ export default function SignUpScreen() {
         },
       });
       
-      setShowConfirmation(true);
-      Alert.alert(
-        'Verification Required',
-        'Please check your email for a verification code and enter it below.'
-      );
+      router.replace({ pathname: '/(public)/verify-otp', params: { mode: 'signup', email: email.trim() } });
     } catch (error: any) {
       console.error('Sign up error:', error);
       
@@ -152,15 +149,7 @@ export default function SignUpScreen() {
             <View style={styles.form}>
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Verification Code</Text>
-                <TextInput
-                  style={styles.input}
-                  value={confirmationCode}
-                  onChangeText={setConfirmationCode}
-                  placeholder="Enter 6-digit code"
-                  keyboardType="number-pad"
-                  maxLength={6}
-                  editable={!isLoading}
-                />
+                <OtpCodeInput value={confirmationCode} onChangeCode={setConfirmationCode} />
               </View>
 
               <TouchableOpacity

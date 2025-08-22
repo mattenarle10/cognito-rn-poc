@@ -1,6 +1,4 @@
-// React Native polyfills for Amplify v6 - MUST be first
 import '@aws-amplify/react-native';
-
 import React from 'react';
 import { Stack } from 'expo-router';
 import { Amplify } from 'aws-amplify';
