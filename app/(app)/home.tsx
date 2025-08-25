@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { signOut, getCurrentUser, fetchUserAttributes } from 'aws-amplify/auth';
+import { signOut, getCurrentUser, fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth';
 import type { UserInfo } from '../../src/types';
 
 export default function DashboardScreen() {
@@ -23,13 +23,32 @@ export default function DashboardScreen() {
   const fetchUserInfo = async () => {
     try {
       const user = await getCurrentUser();
-      const attributes = await fetchUserAttributes();
+      const session = await fetchAuthSession();
+      const idToken: any = session?.tokens?.idToken?.payload ?? {};
+      // Prefer ID token claims (available with openid/email/profile scopes)
+      let email = idToken.email as string | undefined;
+      let givenName = (idToken.given_name || idToken.givenName) as string | undefined;
+      let familyName = (idToken.family_name || idToken.familyName) as string | undefined;
+
+      // Fallback to Cognito attributes if needed
+      if (!email || (!givenName && !familyName)) {
+        try {
+          const attributes = await fetchUserAttributes();
+          email = email || (attributes as any).email;
+          givenName = givenName || (attributes as any).given_name;
+          familyName = familyName || (attributes as any).family_name;
+        } catch (attrErr) {
+          // Ignore scope errors; we can proceed with what we have
+          console.warn('Attributes fallback failed:', attrErr);
+        }
+      }
+
       const nextUser: UserInfo = {
         userId: user.userId,
         username: user.username,
-        ...(attributes.email ? { email: attributes.email } : {}),
-        ...(attributes.given_name ? { givenName: attributes.given_name } : {}),
-        ...(attributes.family_name ? { familyName: attributes.family_name } : {}),
+        ...(email ? { email } : {}),
+        ...(givenName ? { givenName } : {}),
+        ...(familyName ? { familyName } : {}),
       };
       setUserInfo(nextUser);
     } catch (error) {

@@ -1,3 +1,5 @@
+import * as Linking from 'expo-linking';
+
 // Amplify Configuration (v6 format)
 // Minimal config for Cognito User Pool (email/password only)
 
@@ -14,8 +16,15 @@ export const amplifyConfig = {
           domain: process.env.EXPO_PUBLIC_COGNITO_DOMAIN_HOST,
           scopes: ['openid', 'email', 'profile'],
           // Amplify expects arrays for RN/Expo so it can pick the matching redirect
-          redirectSignIn: [process.env.EXPO_PUBLIC_SIGNIN_REDIRECT_URL].filter(Boolean) as string[],
-          redirectSignOut: [process.env.EXPO_PUBLIC_SIGNOUT_REDIRECT_URL].filter(Boolean) as string[],
+          redirectSignIn: [
+            process.env.EXPO_PUBLIC_SIGNIN_REDIRECT_URL as string,
+            // Expo Go/dev return URL (e.g., exp://.../--/)
+            Linking.createURL('/'),
+          ].filter(Boolean) as string[],
+          redirectSignOut: [
+            process.env.EXPO_PUBLIC_SIGNOUT_REDIRECT_URL as string,
+            Linking.createURL('/'),
+          ].filter(Boolean) as string[],
           responseType: 'code',
         },
       },
