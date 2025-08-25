@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "start": "dotenv -e .env -- expo start",
+    "android": "dotenv -e .env -- expo start --android",
+    "ios": "dotenv -e .env -- expo start --ios",
+    "web": "dotenv -e .env -- expo start --web"
   },
   "dependencies": {
     "@aws-amplify/react-native": "^1.1.10",
@@ -15,20 +15,22 @@
     "@react-navigation/stack": "^7.4.7",
     "aws-amplify": "^6.15.5",
     "expo": "~53.0.20",
+    "expo-constants": "~17.1.7",
+    "expo-font": "~13.3.2",
+    "expo-linking": "~7.1.7",
+    "expo-router": "~5.1.4",
+    "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
+    "expo-web-browser": "~14.2.0",
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-safe-area-context": "5.4.0",
-    "react-native-screens": "~4.11.1",
-    "expo-router": "~5.1.4",
-    "expo-linking": "~7.1.7",
-    "expo-constants": "~17.1.7",
-    "expo-font": "~13.3.2",
-    "expo-splash-screen": "~0.30.10"
+    "react-native-screens": "~4.11.1"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~19.0.10",
+    "dotenv-cli": "^7.4.4",
     "typescript": "~5.8.3"
   },
   "private": true

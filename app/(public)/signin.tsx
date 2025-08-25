@@ -13,7 +13,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { signIn } from 'aws-amplify/auth';
+import { signIn, signInWithRedirect } from 'aws-amplify/auth';
+import * as WebBrowser from 'expo-web-browser';
+
 
 export default function SignInScreen() {
   const [email, setEmail] = useState('');
@@ -81,6 +83,43 @@ export default function SignInScreen() {
     router.push('/(public)/forgot-password');
   };
 
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      await signInWithRedirect({
+        provider: 'Google',
+        options: {
+          prompt: 'SELECT_ACCOUNT',
+          // Wrap Expo WebBrowser opener to match Amplify's expected return shape
+          authSessionOpener: async (
+            url: string,
+            redirectUrl: string | string[]
+          ) => {
+            const returnUrl = Array.isArray(redirectUrl)
+              ? redirectUrl[0]
+              : redirectUrl;
+            const result = await WebBrowser.openAuthSessionAsync(
+              url,
+              returnUrl
+            );
+            if (result.type === 'success' && (result as any).url) {
+              return { type: 'success', url: result.url } as any;
+            }
+            // For 'cancel' or 'dismiss', return undefined so Amplify treats as no-op
+            return undefined as any;
+          },
+        },
+      });
+      // Do not navigate here; let app/index.tsx guard after redirect finalize
+    } catch (error: any) {
+      const msg = error?.message || 'Google sign-in failed';
+      Alert.alert('Google Sign-In', msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
@@ -142,6 +181,14 @@ export default function SignInScreen() {
               <Text style={styles.signInButtonText}>
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.googleButton, isLoading && styles.buttonDisabled]}
+              onPress={handleGoogleSignIn}
+              disabled={isLoading}
+            >
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
             <View style={styles.signUpContainer}>
@@ -244,6 +291,20 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.6,
+  },
+  googleButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e1e5e9',
+  },
+  googleButtonText: {
+    color: '#1a1a1a',
+    fontSize: 16,
+    fontWeight: '600',
   },
   signUpContainer: {
     flexDirection: 'row',

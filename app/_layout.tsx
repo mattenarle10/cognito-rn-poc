@@ -5,8 +5,8 @@ import { Amplify } from 'aws-amplify';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { amplifyConfig } from '../src/lib/amplify-config';
 
-// Initialize Amplify
-Amplify.configure(amplifyConfig);
+// Initialize Amplify as early as possible
+Amplify.configure(amplifyConfig as any);
 
 export default function RootLayout() {
   return (
