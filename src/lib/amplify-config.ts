@@ -6,15 +6,20 @@ import { Platform } from 'react-native';
 
 // Get all possible redirect URLs for the app based on environment
 const getRedirectUrls = () => {
-  // Main app scheme URL - this must match the scheme in app.json and Cognito
-  // Format: scheme:// (for deep linking back to the app)
-  const schemeUrl = 'cognito-rn-poc://';
+  // IMPORTANT: These EXACT URLs must be registered in your Cognito app client settings
+  // Base scheme URL without path (most common configuration)
+  const baseSchemeUrl = 'cognito-rn-poc://';
   
-  // Get the dynamic Expo URL for development
-  const expoDevUrl = Linking.createURL('/');
+  // If you're having redirect issues, try all possible variations that might be registered
+  // in your Cognito app client settings
+  const variations = [
+    baseSchemeUrl,                   // cognito-rn-poc://
+    `${baseSchemeUrl}callback/`,     // cognito-rn-poc://callback/
+    `${baseSchemeUrl}signin/`,       // cognito-rn-poc://signin/
+    Linking.createURL('/')           // For Expo dev URLs
+  ];
   
-  // Include explicit app scheme URL for iOS/Android native handling
-  return [schemeUrl, expoDevUrl].filter(Boolean) as string[];
+  return variations.filter(Boolean) as string[];
 };
 
 export const amplifyConfig = {

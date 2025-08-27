@@ -9,21 +9,126 @@ export default function IndexScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Log deep link URL for debugging OAuth redirects
+    // Improved handling of initial deep link URL
     const getInitialUrl = async () => {
-      const initialURL = await Linking.getInitialURL();
-      console.log('🔗 Initial URL:', initialURL);
+      try {
+        const initialURL = await Linking.getInitialURL();
+        console.log('🔗 Initial URL:', initialURL);
+        
+        if (initialURL) {
+          console.log('🔍 Inspecting initial URL...');
+          
+          // Check for OAuth code in any part of the URL or if it's from development client
+          if (initialURL.includes('code=')) {
+            console.log('🔓 OAuth code detected in initial URL!');
+            await processOAuthCallback(initialURL);
+            return true;
+          } else if (initialURL.includes('expo-development-client')) {
+            console.log('💻 Development client URL detected - watching for OAuth redirect...');
+            // In development mode, we may get expo-development-client URLs first
+            // We'll need to rely on the URL event listener for the actual OAuth code
+          } else {
+            console.log('⚠️ No OAuth code in initial URL');
+          }
+        }
+        return false;
+      } catch (error) {
+        console.log('🚨 Error getting initial URL:', error);
+        return false;
+      }
     };
     
-    getInitialUrl();
+    // Enhanced function to extract and process OAuth code from URL
+    const processOAuthCallback = async (url: string) => {
+      try {
+        console.log('🔑 Processing OAuth callback URL:', url);
+        
+        // Try to extract code from URL query parameters
+        let code: string | null = null;
+        try {
+          // First try standard URL parsing
+          const urlObj = new URL(url);
+          code = urlObj.searchParams.get('code');
+          
+          // If code not found in search params, try parsing it from the fragment
+          if (!code && urlObj.hash) {
+            const hashParams = new URLSearchParams(urlObj.hash.substring(1));
+            code = hashParams.get('code');
+          }
+          
+          // If still no code, try manual extraction (some URLs might not parse correctly)
+          if (!code) {
+            const codeMatch = url.match(/code=([^&]+)/);
+            if (codeMatch && codeMatch[1]) {
+              code = codeMatch[1];
+            }
+          }
+        } catch (parseError) {
+          // If URL parsing fails, try manual extraction
+          console.log('⚠️ Error parsing URL, trying manual extraction:', parseError);
+          const codeMatch = url.match(/code=([^&]+)/);
+          if (codeMatch && codeMatch[1]) {
+            code = codeMatch[1];
+          }
+        }
+        
+        if (code) {
+          console.log('🔐 Auth code extracted successfully, length:', code.length);
+          
+          // Wait briefly to ensure AWS SDK is ready to process the auth code
+          console.log('⌛ Adding brief delay before auth refresh...');
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Force refresh auth session multiple times if needed
+          for (let i = 0; i < 2; i++) {
+            console.log(`🔄 Forcing auth session refresh (attempt ${i+1})`);
+            try {
+              const session = await fetchAuthSession({ forceRefresh: true });
+              if (session?.tokens?.idToken) {
+                console.log('✅ Valid session found! Navigating to home');
+                router.replace('/(app)/home');
+                return true;
+              } else {
+                console.log('⚠️ No tokens in session, retrying...');
+                await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retry
+              }
+            } catch (refreshError) {
+              console.log('🚨 Error refreshing session:', refreshError);
+              await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retry
+            }
+          }
+          
+          console.log('⛔ Could not obtain valid session after multiple attempts');
+          return false;
+        } else {
+          console.log('⚠️ No auth code found in URL');
+          return false;
+        }
+      } catch (error) {
+        console.log('🚨 Error processing OAuth callback:', error);
+        return false;
+      }
+    };
     
-    // Listen for deep linking events to debug OAuth redirects
+    // Set up listener for incoming deep links
     const subscription = Linking.addEventListener('url', (event: {url: string}) => {
-      console.log('🔗 Got URL event:', event.url);
+      console.log('🔗 Deep link event received:', event.url);
+      
+      if (event.url && event.url.includes('code=')) {
+        console.log('🔓 OAuth code detected in deep link!');
+        processOAuthCallback(event.url);
+      } else {
+        console.log('❓ Deep link without OAuth code:', event.url);
+      }
     });
     
-    // Start authentication check
-    checkAuthState();
+    // Call getInitialUrl to check for initial OAuth code in URL
+    getInitialUrl().then(hasAuthCode => {
+      if (!hasAuthCode) {
+        // Only run regular auth check if we didn't process an OAuth code
+        checkAuthState();
+      }
+    });
     
     // Clean up subscription on unmount
     return () => {

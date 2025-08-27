@@ -14,9 +14,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import { signIn, signInWithRedirect } from 'aws-amplify/auth';
-import * as Linking from 'expo-linking';
+import { signIn, fetchAuthSession } from 'aws-amplify/auth';
 import { amplifyConfig } from '../../src/lib/amplify-config';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 
 export default function SignInScreen() {
@@ -88,32 +89,105 @@ export default function SignInScreen() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Try to use Amplify's signInWithRedirect first
+      // First attempt to clear browser state to force account selection
       try {
-        console.log('📱 Attempting Amplify signInWithRedirect');
-        await signInWithRedirect({
-          provider: 'Google'
-        });
-        return; // If successful, exit early
-      } catch (redirectError) {
-        // If native module error, fall back to direct URL approach
-        console.log('⚠️ Native module error, using fallback approach:', redirectError);
+        console.log('🧹 Attempting to clear WebBrowser state');
+        await WebBrowser.warmUpAsync();
+        await WebBrowser.coolDownAsync();
+      } catch (clearError) {
+        console.log('⚠️ Could not clear WebBrowser state', clearError);
       }
-      
-      // Fallback: Manually construct and open OAuth URL
-      console.log('📱 Using direct URL fallback approach');
-      
+
       // Extract configuration from amplifyConfig
       const cognitoConfig = amplifyConfig.Auth.Cognito;
       const domain = cognitoConfig.loginWith.oauth.domain;
       const clientId = cognitoConfig.userPoolClientId;
-      const redirectUri = Linking.createURL('/');
       
-      // Construct the OAuth URL manually with explicit prompt parameter
-      const oauthUrl = `https://${domain}/oauth2/authorize?identity_provider=Google&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&client_id=${clientId}&scope=email+openid+profile&prompt=select_account&state=${Date.now()}`;
+      // MUST exactly match one of the URIs registered in Cognito app client settings
+      const redirectUri = 'cognito-rn-poc://';
       
-      console.log('🔗 Opening OAuth URL:', oauthUrl);
-      await Linking.openURL(oauthUrl);
+      // Generate unique state to prevent CSRF attacks and help with cache busting
+      const state = `${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+      
+      // Enhanced parameters that will force Google account selection
+      const params = new URLSearchParams();
+      params.append('identity_provider', 'Google');
+      params.append('redirect_uri', redirectUri);
+      params.append('response_type', 'code');
+      params.append('client_id', clientId || '');
+      params.append('scope', 'email openid profile');
+      params.append('state', state);
+      
+      // Critical parameters to force account selection
+      params.append('prompt', 'select_account');
+      params.append('max_age', '0'); // Force re-authentication
+      
+      // Add a timestamp to bypass caching
+      params.append('cache_buster', Date.now().toString());
+      
+      // Create the final OAuth URL with all parameters
+      const oauthUrl = `https://${domain}/oauth2/authorize?${params.toString()}`;
+      
+      console.log('🔍 Starting OAuth flow with direct URL');
+      console.log('🔗 OAuth URL:', oauthUrl);
+      
+      // Set up a temporary deep link handler for the auth redirect
+      console.log('🔄 Setting up deep link handler');
+      const linkingSubscription = Linking.addEventListener('url', (event: {url: string}) => {
+        const url = event.url;
+        console.log('🔄 URL event received:', url);
+        
+        if (url && url.includes('code=')) {
+          console.log('✓ Auth code found in redirect URL');
+          // Extract auth code for debugging
+          try {
+            const code = new URL(url).searchParams.get('code');
+            console.log('💼 Auth code length:', code ? code.length : 'no code found');
+          } catch (e) {
+            console.log('⚠️ Error parsing URL:', e);
+          }
+          
+          // Force auth session refresh and navigate to home
+          setTimeout(async () => {
+            try {
+              console.log('🔄 Forcing auth session refresh');
+              await fetchAuthSession({ forceRefresh: true });
+              console.log('🔄 Navigating to home');
+              router.replace('/(app)/home');
+            } catch (error) {
+              console.log('⚠️ Error refreshing session:', error);
+            }
+          }, 800);
+        }
+      });
+      
+      try {
+        // Clear any previous sessions first
+        await WebBrowser.maybeCompleteAuthSession();
+        
+        console.log('🔍 Opening browser for auth');
+        // Try to open auth URL with system browser for most reliable experience
+        if (Platform.OS === 'android') {
+          await Linking.openURL(oauthUrl);
+        } else {
+          // On iOS, try WebBrowser component first for better UX
+          try {
+            await WebBrowser.openAuthSessionAsync(oauthUrl, redirectUri);
+          } catch (error) {
+            console.log('⚠️ WebBrowser error, falling back to system browser:', error);
+            await Linking.openURL(oauthUrl);
+          }
+        }
+      } catch (error) {
+        console.log('⛔ Error opening browser:', error);
+        Alert.alert('Error', 'Could not open browser for authentication');
+      } finally {
+        // Always clean up the subscription to avoid memory leaks
+        linkingSubscription.remove();
+      }
+      
+      // Note: The app will be redirected back via deep link
+      // The redirect handling is done in app/index.tsx
     } catch (error) {
       console.error('Google sign in error:', error);
       Alert.alert('Error', 'Failed to sign in with Google');
