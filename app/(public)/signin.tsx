@@ -15,8 +15,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { signIn, signInWithRedirect } from 'aws-amplify/auth';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
 
 
 export default function SignInScreen() {
@@ -88,57 +86,24 @@ export default function SignInScreen() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Platform-specific approach
+      // Handle Google sign-in with platform-specific considerations
       const isAndroid = Platform.OS === 'android';
       
-      // Custom opener function for handling auth session
-      const authSessionOpener = async (url: string) => {
-        console.log('🔐 Opening OAuth URL:', url);
-        const expectedReturnUrl = 
-          process.env.EXPO_PUBLIC_SIGNIN_REDIRECT_URL || Linking.createURL('/');
-        console.log('🔙 Expected return URL:', expectedReturnUrl);
-        
-        // On Android, use Linking.openURL instead of WebBrowser to avoid blank page
-        if (isAndroid) {
-          console.log('📱 Android: Using external browser');
-          await Linking.openURL(url);
-          
-          // Return an expected object structure for Android
-          return { url: expectedReturnUrl };
-        } 
-        
-        // For iOS, use WebBrowser which handles cookies and sessions properly
-        const result = await WebBrowser.openAuthSessionAsync(
-          url,
-          expectedReturnUrl,
-          {
-            showInRecents: true,
-          }
-        );
-        
-        console.log('📱 Auth session result type:', result.type);
-        
-        if (result.type === 'success') {
-          console.log('✅ Got successful redirect with URL');
-          return { url: result.url };
-        } else if (result.type === 'cancel') {
-          console.log('❌ Auth session was canceled');
-          return { error: 'login_cancelled' };
-        }
-        
-        console.log('⚠️ Auth session ended with type:', result.type);
-        return { error: result.type };
-      };
-      
-      // Use Amplify signInWithRedirect for Google OAuth
-      await signInWithRedirect({
-        provider: 'Google',
-        customState: 'from-app-google-button',
-        options: {
-          // Use authSessionOpener directly
-          authSessionOpener: authSessionOpener,
-        },
-      });
+      if (isAndroid) {
+        console.log('📱 Android: Using simpler redirect approach');
+        // On Android, use the simpler approach without custom opener
+        // This avoids the blank page issue in WebView
+        await signInWithRedirect({
+          provider: 'Google',
+          customState: 'android-google-signin',
+        });
+      } else {
+        // On iOS, we can use the standard approach which works well
+        await signInWithRedirect({
+          provider: 'Google',
+          customState: 'ios-google-signin',
+        });
+      }
     } catch (error) {
       console.error('Google sign in error:', error);
       Alert.alert('Error', 'Failed to sign in with Google');

@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { fetchAuthSession, getCurrentUser, fetchUserAttributes } from 'aws-amplify/auth';
-import * as WebBrowser from 'expo-web-browser';
 
 export default function IndexScreen() {
   const [isLoading, setIsLoading] = useState(true);
@@ -18,11 +17,12 @@ export default function IndexScreen() {
     try {
       console.log('🔍 Checking auth state...');
 
-      // For iOS we need to call WebBrowser.maybeCompleteAuthSession() again here
-      // This ensures we process any redirects that might have been missed
+      // On iOS, we may get a successful auth session but need to ensure navigation
+      // Note that WebBrowser.maybeCompleteAuthSession() is already called in _layout.tsx
       if (Platform.OS === 'ios') {
-        console.log('📱 iOS: Calling maybeCompleteAuthSession again');
-        WebBrowser.maybeCompleteAuthSession();
+        console.log('📱 iOS: Additional checks for OAuth completion');
+        // On iOS, delay slightly to ensure auth state is fully updated after redirect
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
 
       // Manually handle the OAuth redirect result

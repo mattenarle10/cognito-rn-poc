@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { signOut, getCurrentUser, fetchUserAttributes, fetchAuthSession } from 'aws-amplify/auth';
 import type { UserInfo } from '../../src/types';
-import * as Linking from 'expo-linking';
+// Removed unused import
 
 export default function DashboardScreen() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -75,9 +75,9 @@ export default function DashboardScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const redirectUrl =
-                process.env.EXPO_PUBLIC_SIGNOUT_REDIRECT_URL || Linking.createURL('/');
-              await signOut({ global: false, oauth: { redirectUrl } });
+              // No redirect URL needed for non-global sign out
+              // For OAuth users, we need to use global:true
+              await signOut({ global: true });
               router.replace('/(public)/signin');
             } catch (error: any) {
               console.error('Sign out error:', error);
