@@ -9,12 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { signIn, signInWithRedirect } from 'aws-amplify/auth';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 
 
 export default function SignInScreen() {
@@ -86,39 +88,64 @@ export default function SignInScreen() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
+      // Platform-specific approach
+      const isAndroid = Platform.OS === 'android';
+      
+      // Custom opener function for handling auth session
+      const authSessionOpener = async (url: string) => {
+        console.log('🔐 Opening OAuth URL:', url);
+        const expectedReturnUrl = 
+          process.env.EXPO_PUBLIC_SIGNIN_REDIRECT_URL || Linking.createURL('/');
+        console.log('🔙 Expected return URL:', expectedReturnUrl);
+        
+        // On Android, use Linking.openURL instead of WebBrowser to avoid blank page
+        if (isAndroid) {
+          console.log('📱 Android: Using external browser');
+          await Linking.openURL(url);
+          
+          // Return an expected object structure for Android
+          return { url: expectedReturnUrl };
+        } 
+        
+        // For iOS, use WebBrowser which handles cookies and sessions properly
+        const result = await WebBrowser.openAuthSessionAsync(
+          url,
+          expectedReturnUrl,
+          {
+            showInRecents: true,
+          }
+        );
+        
+        console.log('📱 Auth session result type:', result.type);
+        
+        if (result.type === 'success') {
+          console.log('✅ Got successful redirect with URL');
+          return { url: result.url };
+        } else if (result.type === 'cancel') {
+          console.log('❌ Auth session was canceled');
+          return { error: 'login_cancelled' };
+        }
+        
+        console.log('⚠️ Auth session ended with type:', result.type);
+        return { error: result.type };
+      };
+      
+      // Use Amplify signInWithRedirect for Google OAuth
       await signInWithRedirect({
         provider: 'Google',
+        customState: 'from-app-google-button',
         options: {
-          prompt: 'SELECT_ACCOUNT',
-          // Wrap Expo WebBrowser opener to match Amplify's expected return shape
-          authSessionOpener: async (
-            url: string,
-            redirectUrl: string | string[]
-          ) => {
-            const returnUrl = Array.isArray(redirectUrl)
-              ? redirectUrl[0]
-              : redirectUrl;
-            const result = await WebBrowser.openAuthSessionAsync(
-              url,
-              returnUrl
-            );
-            if (result.type === 'success' && (result as any).url) {
-              return { type: 'success', url: result.url } as any;
-            }
-            // For 'cancel' or 'dismiss', return undefined so Amplify treats as no-op
-            return undefined as any;
-          },
+          // Use authSessionOpener directly
+          authSessionOpener: authSessionOpener,
         },
       });
-      // Do not navigate here; let app/index.tsx guard after redirect finalize
-    } catch (error: any) {
-      const msg = error?.message || 'Google sign-in failed';
-      Alert.alert('Google Sign-In', msg);
+    } catch (error) {
+      console.error('Google sign in error:', error);
+      Alert.alert('Error', 'Failed to sign in with Google');
     } finally {
       setIsLoading(false);
     }
   };
-
 
   return (
     <SafeAreaView style={styles.container}>
@@ -188,6 +215,13 @@ export default function SignInScreen() {
               onPress={handleGoogleSignIn}
               disabled={isLoading}
             >
+              {isLoading ? (
+                <ActivityIndicator color="#4285F4" size="small" style={styles.googleButtonIcon} />
+              ) : (
+                <View style={styles.googleIconContainer}>
+                  <Text style={styles.googleIcon}>G</Text>
+                </View>
+              )}
               <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
 
@@ -296,7 +330,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#e1e5e9',
@@ -305,6 +341,23 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '600',
+    marginLeft: 12,
+  },
+  googleIconContainer: {
+    width: 24,
+    height: 24,
+    backgroundColor: '#4285F4',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  googleIcon: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  googleButtonIcon: {
+    marginRight: 12,
   },
   signUpContainer: {
     flexDirection: 'row',
