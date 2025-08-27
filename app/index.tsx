@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator, Text, Platform } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Text, Platform, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -9,16 +9,34 @@ export default function IndexScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Log deep link URL for debugging OAuth redirects
+    const getInitialUrl = async () => {
+      const initialURL = await Linking.getInitialURL();
+      console.log('🔗 Initial URL:', initialURL);
+    };
+    
+    getInitialUrl();
+    
+    // Listen for deep linking events to debug OAuth redirects
+    const subscription = Linking.addEventListener('url', (event: {url: string}) => {
+      console.log('🔗 Got URL event:', event.url);
+    });
+    
+    // Start authentication check
     checkAuthState();
+    
+    // Clean up subscription on unmount
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const checkAuthState = async () => {
     let didNavigate = false;
     try {
       console.log('🔍 Checking auth state...');
-
+      
       // On iOS, we may get a successful auth session but need to ensure navigation
-      // Note that WebBrowser.maybeCompleteAuthSession() is already called in _layout.tsx
       if (Platform.OS === 'ios') {
         console.log('📱 iOS: Additional checks for OAuth completion');
         // On iOS, delay slightly to ensure auth state is fully updated after redirect

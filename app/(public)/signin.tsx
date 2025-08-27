@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { signIn, signInWithRedirect } from 'aws-amplify/auth';
+import * as Linking from 'expo-linking';
+import { amplifyConfig } from '../../src/lib/amplify-config';
 
 
 export default function SignInScreen() {
@@ -86,24 +88,32 @@ export default function SignInScreen() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     try {
-      // Handle Google sign-in with platform-specific considerations
-      const isAndroid = Platform.OS === 'android';
-      
-      if (isAndroid) {
-        console.log('📱 Android: Using simpler redirect approach');
-        // On Android, use the simpler approach without custom opener
-        // This avoids the blank page issue in WebView
+      // Try to use Amplify's signInWithRedirect first
+      try {
+        console.log('📱 Attempting Amplify signInWithRedirect');
         await signInWithRedirect({
-          provider: 'Google',
-          customState: 'android-google-signin',
+          provider: 'Google'
         });
-      } else {
-        // On iOS, we can use the standard approach which works well
-        await signInWithRedirect({
-          provider: 'Google',
-          customState: 'ios-google-signin',
-        });
+        return; // If successful, exit early
+      } catch (redirectError) {
+        // If native module error, fall back to direct URL approach
+        console.log('⚠️ Native module error, using fallback approach:', redirectError);
       }
+      
+      // Fallback: Manually construct and open OAuth URL
+      console.log('📱 Using direct URL fallback approach');
+      
+      // Extract configuration from amplifyConfig
+      const cognitoConfig = amplifyConfig.Auth.Cognito;
+      const domain = cognitoConfig.loginWith.oauth.domain;
+      const clientId = cognitoConfig.userPoolClientId;
+      const redirectUri = Linking.createURL('/');
+      
+      // Construct the OAuth URL manually with explicit prompt parameter
+      const oauthUrl = `https://${domain}/oauth2/authorize?identity_provider=Google&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&client_id=${clientId}&scope=email+openid+profile&prompt=select_account&state=${Date.now()}`;
+      
+      console.log('🔗 Opening OAuth URL:', oauthUrl);
+      await Linking.openURL(oauthUrl);
     } catch (error) {
       console.error('Google sign in error:', error);
       Alert.alert('Error', 'Failed to sign in with Google');

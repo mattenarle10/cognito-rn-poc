@@ -1,18 +1,20 @@
 import * as Linking from 'expo-linking';
+import { Platform } from 'react-native';
 
 // Amplify Configuration (v6 format)
 // Enhanced for OAuth providers (Google) with Cognito
 
 // Get all possible redirect URLs for the app based on environment
 const getRedirectUrls = () => {
-  // Main redirect URL from .env
-  const mainRedirectUrl = process.env.EXPO_PUBLIC_SIGNIN_REDIRECT_URL;
+  // Main app scheme URL - this must match the scheme in app.json and Cognito
+  // Format: scheme:// (for deep linking back to the app)
+  const schemeUrl = 'cognito-rn-poc://';
   
-  // Expo development URL
+  // Get the dynamic Expo URL for development
   const expoDevUrl = Linking.createURL('/');
-
-  // Collect all valid URLs, filter out any undefined/empty ones
-  return [mainRedirectUrl, expoDevUrl].filter(Boolean) as string[];
+  
+  // Include explicit app scheme URL for iOS/Android native handling
+  return [schemeUrl, expoDevUrl].filter(Boolean) as string[];
 };
 
 export const amplifyConfig = {
@@ -35,13 +37,19 @@ export const amplifyConfig = {
           // Force account selection on every login
           options: {
             // These settings help ensure the Google account chooser appears
-            // 'prompt' parameter forces Google to show account selection
-            // 'login_hint' can be set if you want to pre-fill a specific account
             cognitoHostedUIOptions: {
+              // Always show account selection screen
               oAuthQueryParameters: {
                 prompt: 'select_account',
               },
             },
+            // Disable custom tabs in Android for consistent behavior
+            customTabs: false,
+            // Ensure redirect works by explicitly defining browser package
+            browserPackage: Platform.select({
+              android: 'com.android.chrome',
+              ios: undefined
+            }),
           },
         },
       },
